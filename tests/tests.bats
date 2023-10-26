@@ -96,3 +96,12 @@ actual_matches_expected() {
 
     [[ "$status" -eq 0 ]]
 }
+
+@test "jq-v1.7-syntax test" {
+    TEST="jq-v1.7-syntax"
+    TEST_DIR="$DATA_DIR/$TEST"
+    run "$RUN_SCRIPT" "$TEST" "$TEST_DIR" "$TEST_DIR"
+
+    [[ "$status" -eq 0 ]]
+    actual_matches_expected "$TEST_DIR/results.json" "$TEST_DIR/expected_results.json"
+}
