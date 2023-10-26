@@ -1,7 +1,7 @@
-FROM alpine:latest
+FROM alpine:3.18.4@sha256:48d9183eb12a05c99bcc0bf44a003607b8e941e1d4f41f9ad12bdcc4b5672f86
 
-# bash - v5.2.15-r6
-# bats - v1.10.0-r0
+# bash - v5.2.15-r5
+# bats - v1.9.0-r0
 RUN apk add --no-cache bash bats
 
 # jq   - v1.7-r2
