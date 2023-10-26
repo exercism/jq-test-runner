@@ -1,21 +1,11 @@
-FROM ubuntu:22.04
+FROM alpine:latest
 
-# Specifically use bats 1.7.0
-# Remove git when we're done with it.
-# Test runner needs jq.
+# bash - v5.2.15-r6
+# bats - v1.10.0-r0
+RUN apk add --no-cache bash bats
 
-RUN apt-get update                                   && \
-    apt-get install -y      jq git                   && \
-    git clone https://github.com/bats-core/bats-core && \
-    cd bats-core                                     && \
-    git checkout v1.7.0                              && \
-    bash ./install.sh /usr/local                     && \
-    cd ..                                            && \
-    rm -rf ./bats-core                               && \
-    apt-get remove -y git                            && \
-    apt-get purge --auto-remove -y                   && \
-    apt-get clean                                    && \
-    rm -rf /var/lib/apt/lists/*
+# jq   - v1.7-r2
+RUN apk add --no-cache --repository https://dl-cdn.alpinelinux.org/alpine/edge/main jq
 
 WORKDIR /opt/test-runner
 COPY . .
