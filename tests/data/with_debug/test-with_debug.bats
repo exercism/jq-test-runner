@@ -20,6 +20,12 @@ load bats-jq
   assert_output '"foofoo"'
 }
 
+@test "double an object is an error" {
+  run jq -f with_debug.jq <<< '{"hello":"world"}'
+  assert_failure
+  assert_output 'cannot multiply object with number'
+}
+
 @test "double an array is an error" {
   run jq -f with_debug.jq <<< "[1,2,3]"
   assert_failure

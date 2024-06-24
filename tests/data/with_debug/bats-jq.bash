@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 #
-# `bats-core` will take both stdout and stderr to be the `run` command's output.
+# `bats-core` will consume both stdout and stderr for the `run` command's output.
 # However `jq` prints its DEBUG output on stderr.
-# This function redirects jq's stderr to a process substitution:
-# - lines starting with '["DEBUG:"' will be prefixed with a hash and printed on
-#   file descriptor 3
-# - other lines on stderr will remain on stderr for bats to consume.
+#
+# Lines starting with `["DEBUG:",` will be prefixed with a hash and printed on file descriptor 3.
+# Other lines on stderr will remain on stderr for bats to consume.
 #
 # See `bats-core` docs:
 # - "Printing to the terminal", https://bats-core.readthedocs.io/en/stable/writing-tests.html#printing-to-the-terminal
@@ -13,13 +12,18 @@
 
 
 jq() {
-    command jq "$@" 2> >(
-        while IFS= read -r line; do
-            if [[ $line == '["DEBUG:",'* ]]; then
-                echo "# $line" >&3
-            else
-                echo "$line" >&2
-            fi
-        done
-    )
+    local output stderr rc
+    stderr=$(mktemp)
+    output=$(command jq "$@" 2> "$stderr")
+    rc=$?
+    while IFS= read -r line || [[ -n $line ]]; do
+        if [[ $line == '["DEBUG:",'* ]]; then
+            echo "# $line" >&3
+        else
+            echo "$line" >&2
+        fi
+    done < "$stderr"
+    rm "$stderr"
+    echo "$output"
+    return $rc
 }
