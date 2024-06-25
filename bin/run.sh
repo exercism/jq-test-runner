@@ -146,10 +146,21 @@ build_report() {
     # process the rest of the TAP output
     local status="pass"
     local results test_body failed test_name
-    local error_message
+    local error_message 
+    local debug_output prev_debug_output
+
+    # with debug output, we get
+    # - lines starting with '# ["DEBUG:",`
+    # - the test result 'not ok' or 'ok'
+    # - error output starting with '# '
+    #
+    # The error output from test N abuts the debug output from test N+1
 
     for ((i = 1; i < ${#output[@]}; i++)); do
-        if [[ ${output[i]} =~ ^"# "(.*) ]]; then
+        if [[ ${output[i]} =~ '# '('["DEBUG:",'.*) ]]; then
+            debug_output+="${BASH_REMATCH[1]}"$'\n'
+
+        elif [[ ${output[i]} =~ ^"# "(.*) ]]; then
             error_message+="${BASH_REMATCH[1]}"$'\n'
 
         elif [[ ${output[i]} =~ ^(not )?ok\ [0-9]+\ (.*)$ ]]; then
@@ -157,10 +168,10 @@ build_report() {
             # add _previous_ to results
             if [[ -n $test_name ]]; then
                 if [[ -z $failed ]]; then
-                    results+=("$(print_passed_test "$test_name" "$test_body")")
+                    results+=("$(print_passed_test "$test_name" "$test_body" "$prev_debug_output")")
                 else
                     status="fail"
-                    results+=("$(print_failed_test "$test_name" "$error_message" "$test_body")")
+                    results+=("$(print_failed_test "$test_name" "$error_message" "$test_body" "$prev_debug_output")")
                 fi
             fi
 
@@ -168,16 +179,18 @@ build_report() {
             test_name=${BASH_REMATCH[2]}
             test_body=${test_bodies[$test_name]:-}
             error_message=""
+            prev_debug_output=$debug_output
+            debug_output=""
         fi
     done
 
     # last test
     if [[ -n $test_name ]]; then
         if [[ -z $failed ]]; then
-            results+=("$(print_passed_test "$test_name" "$test_body")")
+            results+=("$(print_passed_test "$test_name" "$test_body" "$prev_debug_output")")
         else
             status="fail"
-            results+=("$(print_failed_test "$test_name" "$error_message" "$test_body")")
+            results+=("$(print_failed_test "$test_name" "$error_message" "$test_body" "$prev_debug_output")")
         fi
     fi
 
@@ -242,7 +255,7 @@ tool_versions() {
                 fi
             )" \
         '$ARGS.named'
-}
+}    # ' for syntax highlighting
 
 print_failed_test() {
     # Print result of failed test as JSON.
@@ -252,6 +265,9 @@ print_failed_test() {
         --arg test_code "$3"
         --arg message "$2"
     )
+    if [[ -n "$4" ]] then
+        args+=(--arg output "$4")
+    fi
     if [[ "${task_ids["$1"]}" ]]; then
         args+=( --arg task_id "${task_ids["$1"]}" )
     fi
@@ -265,6 +281,9 @@ print_passed_test() {
         --arg status "pass"
         --arg test_code "$2"
     )
+    if [[ -n "$3" ]] then
+        args+=(--arg output "$3")
+    fi
     if [[ "${task_ids["$1"]}" ]]; then
         args+=( --arg task_id "${task_ids["$1"]}" )
     fi

@@ -89,6 +89,14 @@ actual_matches_expected() {
     [[ "$status" -eq 1 ]]
 }
 
+@test "with_debug test" {
+    TEST="with_debug"
+    TEST_DIR="$DATA_DIR/$TEST"
+    run "$RUN_SCRIPT" "$TEST" "$TEST_DIR" "$TEST_DIR"
+
+    [[ "$status" -eq 0 ]]
+}
+
 @test "jq-syntax-error test" {
     TEST="jq-syntax-error"
     TEST_DIR="$DATA_DIR/$TEST"
