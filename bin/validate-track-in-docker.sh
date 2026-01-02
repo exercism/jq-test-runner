@@ -27,9 +27,8 @@ docker run \
     --rm \
     --network none \
     --read-only \
-    --mount type=bind,src="${PWD}/tests",dst=/opt/test-runner/tests \
+    --mount type=bind,src="${PWD}/track",dst=/opt/test-runner/track \
     --mount type=tmpfs,dst=/tmp \
-    --volume "${PWD}/bin/run-tests.sh:/opt/test-runner/bin/run-tests.sh" \
     --workdir /opt/test-runner \
     --entrypoint /opt/test-runner/track/bin/validate_exercises \
     exercism/jq-test-runner
