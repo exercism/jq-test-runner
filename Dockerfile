@@ -1,12 +1,12 @@
-FROM alpine:3.22.2@sha256:4b7ce07002c69e8f3d704a9c5d6fd3053be500b7f1c69fc0d80990c2ad8dd412
+FROM alpine:3.23.2@sha256:865b95f46d98cf867a156fe4a135ad3fe50d2056aa3f25ed31662dff6da4eb62
 
-# $ docker run --rm -it alpine:3.22.0
+# $ docker run --rm -it alpine:3.23.2
 # $ apk add --no-cache bash bats jq
-# $ bash --version   # => GNU bash, version 5.2.37(1)-release
-# $ bats --version   # => Bats 1.12.0
-# $ jq --version     # => jq-1.8.0
+# $ bash --version   # => GNU bash, version 5.3.3(1)-release (x86_64-alpine-linux-musl)
+# $ bats --version   # => Bats 1.13.0
+# $ jq --version     # => jq-1.8.1
 
-RUN apk add --no-cache bash bats jq
+RUN apk add --no-cache bash bats jq grep
 
 WORKDIR /opt/test-runner
 COPY . .
