@@ -59,7 +59,7 @@ carries bash, bats and jq, this repo's `bin/run.sh` is untarred into
 
 | Key | Meaning |
 | --- | --- |
-| `sysroot` | which published sysroot to run on. Bumping jq means publishing a new sysroot and changing this |
+| `sysroot` | which published sysroot to run on: the jq version it carries, and an id to tell rebuilds of the same version apart. Bumping jq means publishing a new sysroot and changing this |
 | `kernel` | which kernel build to run on |
 | `timeout` | seconds a single run may take before the worker is killed |
 | `env` | environment variables this track needs on top of the sysroot's own |

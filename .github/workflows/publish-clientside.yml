@@ -55,17 +55,33 @@ jobs:
         run: |
           # These end up in S3 keys and in later steps' shell, so they are held
           # to a strict shape even though the file is on main and trusted.
-          for key in sysroot kernel; do
-            value="$(jq -er ".${key}" clientside.json)"
+          segment() {
+            local key="$1" value="$2"
             if ! [[ "${value}" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
               echo "::error::clientside.json: ${key} must be a single path segment, got '${value}'"
               exit 1
             fi
-            echo "${key}=${value}" >> "$GITHUB_OUTPUT"
-          done
+          }
+
+          version="$(jq -er '.sysroot.version' clientside.json)"
+          segment sysroot.version "${version}"
+          id="$(jq -er '.sysroot.id | select(type == "number" and . == floor and . >= 1)' clientside.json)"
+
+          kernel="$(jq -er '.kernel' clientside.json)"
+          segment kernel "${kernel}"
 
           timeout="$(jq -er '.timeout | select(type == "number")' clientside.json)"
-          echo "timeout=${timeout}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "sysroot_version=${version}"
+            echo "sysroot_id=${id}"
+            # Where this track's sysroot lives, relative to the bucket. One
+            # place, because it is needed to read the sysroot here and to
+            # point the browser at it later.
+            echo "sysroot_prefix=test-runners/sysroot/${TRACK}/${version}/${id}"
+            echo "kernel=${kernel}"
+            echo "timeout=${timeout}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Build the tarball
         run: bin/build-clientside-tarball.sh test-runner.tar
@@ -81,8 +97,7 @@ jobs:
           # preload names paths inside the sysroot. A typo, or a jq bump that
           # moves a binary, otherwise fails at boot in a student's browser with
           # nothing useful in the console.
-          sysroot="s3://${BUCKET}/test-runners/${TRACK}/sysroot/${{ steps.config.outputs.sysroot }}"
-          aws s3 cp "${sysroot}/sysroot.tar" sysroot.tar --quiet
+          aws s3 cp "s3://${BUCKET}/${{ steps.config.outputs.sysroot_prefix }}/sysroot.tar" sysroot.tar --quiet
           tar -tf sysroot.tar | sed 's|^|/|' | sort > sysroot-paths.txt
 
           status=0
@@ -95,8 +110,7 @@ jobs:
         run: |
           # The sysroot publishes the half that describes itself - PATH, HOME,
           # the licence - and this repo owns the half that describes the track.
-          sysroot="s3://${BUCKET}/test-runners/${TRACK}/sysroot/${{ steps.config.outputs.sysroot }}"
-          aws s3 cp "${sysroot}/boot.json" base-boot.json --quiet
+          aws s3 cp "s3://${BUCKET}/${{ steps.config.outputs.sysroot_prefix }}/boot.json" base-boot.json --quiet
 
           jq -s '.[0] as $base | .[1] as $track |
             $base + {
@@ -114,14 +128,21 @@ jobs:
           # (an env var in clientside.json, say) still gets a new prefix, which
           # matters because the old one is cached as immutable for a year.
           hash="$(cat test-runner.tar boot.json | sha256sum | cut -c1-12)"
-          echo "id=${hash}-${{ steps.config.outputs.sysroot }}" >> "$GITHUB_OUTPUT"
+          {
+            echo "hash=${hash}"
+            # Under the sysroot it was built and checked against, so a listing
+            # of runner/jq/<version>/<id>/ is every runner made for that sysroot.
+            echo "prefix=test-runners/runner/${TRACK}/${{ steps.config.outputs.sysroot_version }}/${{ steps.config.outputs.sysroot_id }}/${hash}"
+            # latest.json wants a single string for the version.
+            echo "version=${{ steps.config.outputs.sysroot_version }}-${{ steps.config.outputs.sysroot_id }}-${hash}"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Publish the build
         id: publish
         run: |
-          prefix="test-runners/${TRACK}/runner/${{ steps.build.outputs.id }}"
+          prefix="${{ steps.build.outputs.prefix }}"
           # Immutable: nothing at this prefix is ever rewritten, because the
-          # prefix is derived from the contents.
+          # prefix ends in a hash of the contents.
           cache="public, max-age=31536000, immutable"
 
           aws s3 cp test-runner.tar "s3://${BUCKET}/${prefix}/test-runner.tar" \
@@ -138,11 +159,11 @@ jobs:
           # getting the old one - rather than briefly getting a half-published
           # one.
           jq -n \
-            --arg version "${{ steps.build.outputs.id }}" \
+            --arg version "${{ steps.build.outputs.version }}" \
             --argjson timeout "${{ steps.config.outputs.timeout }}" \
             --arg kernel "/test-runners/kernel/${{ steps.config.outputs.kernel }}/" \
             --arg boot "${{ steps.publish.outputs.prefix }}/boot.json" \
-            --arg sysroot "/test-runners/${TRACK}/sysroot/${{ steps.config.outputs.sysroot }}/sysroot.tar" \
+            --arg sysroot "/${{ steps.config.outputs.sysroot_prefix }}/sysroot.tar" \
             --arg testRunner "${{ steps.publish.outputs.prefix }}/test-runner.tar" \
             '{type: "kernel", version: $version, timeout: $timeout,
               kernel: $kernel, boot: $boot, sysroot: $sysroot, testRunner: $testRunner}' \
@@ -156,7 +177,7 @@ jobs:
       - name: Summarise
         run: |
           {
-            echo "### Published \`${{ steps.build.outputs.id }}\`"
+            echo "### Published \`${{ steps.build.outputs.version }}\`"
             echo
             echo '```json'
             cat latest.json
