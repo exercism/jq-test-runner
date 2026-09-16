@@ -1,4 +1,5 @@
-#! /bin/bash -e
+#!/usr/bin/env bash
+set -e
 
 # Synopsis:
 # Test the test runner by running it against a predefined set of solutions 
