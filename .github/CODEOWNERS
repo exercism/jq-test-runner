@@ -1,7 +1,4 @@
 * @exercism/guardians
 
-# The browser test runner publish pipeline. clientside.json is what it
-# publishes from, so a change to either goes past the same people.
-/.github/workflows/publish-clientside.yml @exercism/clientside-test-runners
-/clientside.json @exercism/clientside-test-runners
-/bin/build-clientside-tarball.sh @exercism/clientside-test-runners
+# Writes to the test-runners bucket, so changes to it need sign-off.
+/.github/workflows/publish-clientside.yml @iHiD @exercism/maintainers-admin
