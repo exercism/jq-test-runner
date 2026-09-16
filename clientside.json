@@ -1,0 +1,18 @@
+{
+  "sysroot": {
+    "version": "1.8.2",
+    "id": 1
+  },
+  "kernel": "29f62309-4418-4cce-9bea-71b0d8904531",
+  "timeout": 30,
+  "env": {
+    "BATS_RUN_SKIPPED": "true"
+  },
+  "preload": [
+    "/usr/bin/bash",
+    "/usr/bin/coreutils",
+    "/usr/bin/bats",
+    "/usr/bin/jq",
+    "/usr/bin/grep"
+  ]
+}
