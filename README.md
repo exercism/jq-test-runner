@@ -61,6 +61,9 @@ carries bash, bats and jq, this repo's `bin/run.sh` is untarred into
 | --- | --- |
 | `sysroot` | which published sysroot to run on: the jq version it carries, and an id to tell rebuilds of the same version apart. Bumping jq means publishing a new sysroot and changing this |
 | `kernel` | which kernel build to run on |
+
+Kernels and sysroots are published from [exercism/clientside-tooling][tooling];
+the values here are directory names in that repo.
 | `timeout` | seconds a single run may take before the worker is killed |
 | `env` | environment variables this track needs on top of the sysroot's own |
 | `preload` | binaries to load at boot rather than fault in on first use |
@@ -83,5 +86,6 @@ after a successful Deploy so that the Docker image and the browser tarball
 always come from the same commit.
 
 [test-runners]: https://github.com/exercism/docs/tree/main/building/tooling/test-runners
+[tooling]: https://github.com/exercism/clientside-tooling
 [golden]: https://ro-che.info/articles/2017-12-04-golden-tests
 [exercism]: https://exercism.io

@@ -1,9 +1,9 @@
 {
   "sysroot": {
-    "version": "1.8.1",
+    "version": "1.8.2",
     "id": 1
   },
-  "kernel": "79f9c7ff-3c15-43d3-be68-710fd20f9e18",
+  "kernel": "29f62309-4418-4cce-9bea-71b0d8904531",
   "timeout": 30,
   "env": {
     "BATS_RUN_SKIPPED": "true"
