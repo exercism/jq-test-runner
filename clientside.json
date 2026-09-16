@@ -12,6 +12,7 @@
     "/usr/bin/bash",
     "/usr/bin/coreutils",
     "/usr/bin/bats",
-    "/usr/bin/jq"
+    "/usr/bin/jq",
+    "/usr/bin/grep"
   ]
 }

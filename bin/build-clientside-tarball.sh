@@ -25,6 +25,7 @@
 CONTENTS=(bin/run.sh)
 
 # Everything lands under here, matching the Docker image's WORKDIR.
+# Explicitly not an absolute path: see the `stage` function.
 PREFIX="opt/test-runner"
 
 main() {
