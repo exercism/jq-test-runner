@@ -50,10 +50,8 @@ When you've made modifications to the code that will result in a new "golden" st
 
 ## The client-side runner
 
-The same `bin/run.sh` also runs in the browser, on a wasm kernel that provides a
-real Linux userland. There is no second implementation: the kernel's sysroot
-carries bash, bats and jq, this repo's `bin/run.sh` is untarred into
-`/opt/test-runner`, and executed exactly as the Docker image runs it.
+The same `bin/run.sh` also runs in the browser, on a wasm kernel that provides a real Linux userland.
+There is no second implementation: the kernel's sysroot carries bash, bats and jq, this repo's `bin/run.sh` is untarred into `/opt/test-runner`, and executed exactly as the Docker image runs it.
 
 `clientside.json` is everything this track says about that:
 
@@ -61,16 +59,15 @@ carries bash, bats and jq, this repo's `bin/run.sh` is untarred into
 | --- | --- |
 | `sysroot` | which published sysroot to run on: the jq version it carries, and an id to tell rebuilds of the same version apart. Bumping jq means publishing a new sysroot and changing this |
 | `kernel` | which kernel build to run on |
-
-Kernels and sysroots are published from [exercism/clientside-tooling][tooling];
-the values here are directory names in that repo.
 | `timeout` | seconds a single run may take before the worker is killed |
 | `env` | environment variables this track needs on top of the sysroot's own |
 | `preload` | binaries to load at boot rather than fault in on first use |
 
-`BATS_RUN_SKIPPED` is in `env` for the same reason the Dockerfile sets it: every
-exercise guards every test after the first, so without it a solution is reported
-as passing on the strength of one test.
+Kernels and sysroots are published from [exercism/clientside-tooling][tooling].
+The `kernel` and `sysroot` values are directory names in that repo.
+
+`BATS_RUN_SKIPPED` is in `env` for the same reason the Dockerfile sets it.
+Every exercise guards every test after the first, so without it a solution is reported as passing on the strength of one test.
 
 To build the tarball locally:
 
@@ -78,12 +75,9 @@ To build the tarball locally:
 ./bin/build-clientside-tarball.sh test-runner.tar
 ```
 
-It needs GNU tar, because the archive has to be byte-identical between runs: the
-published path is derived from its hash.
+It needs GNU tar, because the archive has to be byte-identical between runs: the published path is derived from its hash.
 
-Publishing happens in `.github/workflows/publish-clientside.yml`, which runs
-after a successful Deploy so that the Docker image and the browser tarball
-always come from the same commit.
+Publishing happens in `.github/workflows/publish-clientside.yml`, which runs after a successful Deploy so that the Docker image and the browser tarball always come from the same commit.
 
 [test-runners]: https://github.com/exercism/docs/tree/main/building/tooling/test-runners
 [tooling]: https://github.com/exercism/clientside-tooling
