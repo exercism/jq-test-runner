@@ -24,7 +24,6 @@ permissions:
 
 env:
   BUCKET: exercism-test-runners
-  TRACK: jq
 
 jobs:
   publish:
@@ -53,6 +52,12 @@ jobs:
       - name: Read clientside.json
         id: config
         run: |
+          # The track is the repo name, so this file is identical in every
+          # test runner repo.
+          track="${GITHUB_REPOSITORY##*/}"
+          track="${track%-test-runner}"
+          echo "TRACK=${track}" >> "$GITHUB_ENV"
+
           # These end up in S3 keys and in later steps' shell, so they are held
           # to a strict shape even though the file is on main and trusted.
           segment() {
@@ -78,7 +83,7 @@ jobs:
             # Where this track's sysroot lives, relative to the bucket. One
             # place, because it is needed to read the sysroot here and to
             # point the browser at it later.
-            echo "sysroot_prefix=test-runners/sysroot/${TRACK}/${version}/${id}"
+            echo "sysroot_prefix=test-runners/sysroot/${track}/${version}/${id}"
             echo "kernel=${kernel}"
             echo "timeout=${timeout}"
           } >> "$GITHUB_OUTPUT"
@@ -94,7 +99,7 @@ jobs:
 
       - name: Check the sysroot has what we preload
         run: |
-          # preload names paths inside the sysroot. A typo, or a jq bump that
+          # preload names paths inside the sysroot. A typo, or a version bump that
           # moves a binary, otherwise fails at boot in a student's browser with
           # nothing useful in the console.
           aws s3 cp "s3://${BUCKET}/${{ steps.config.outputs.sysroot_prefix }}/sysroot.tar" sysroot.tar --quiet
@@ -131,7 +136,7 @@ jobs:
           {
             echo "hash=${hash}"
             # Under the sysroot it was built and checked against, so a listing
-            # of runner/jq/<version>/<id>/ is every runner made for that sysroot.
+            # of runner/<track>/<version>/<id>/ is every runner made for that sysroot.
             echo "prefix=test-runners/runner/${TRACK}/${{ steps.config.outputs.sysroot_version }}/${{ steps.config.outputs.sysroot_id }}/${hash}"
             # latest.json wants a single string for the version.
             echo "version=${{ steps.config.outputs.sysroot_version }}-${{ steps.config.outputs.sysroot_id }}-${hash}"

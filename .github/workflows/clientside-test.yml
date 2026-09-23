@@ -5,7 +5,7 @@
 # tarball publish-clientside.yml would ship.
 #
 # Lives here for now but is written as the reusable workflow it will become
-# in exercism/github-actions. Nothing in it is jq-specific except what it
+# in exercism/github-actions. Nothing in it is track-specific except what it
 # reads from clientside.json. "Get the harness" is the only step that changes
 # on the move.
 name: Client-side tests
