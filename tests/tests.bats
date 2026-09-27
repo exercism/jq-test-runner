@@ -113,3 +113,12 @@ actual_matches_expected() {
     [[ "$status" -eq 0 ]]
     actual_matches_expected "$TEST_DIR/results.json" "$TEST_DIR/expected_results.json"
 }
+
+@test "assert_objects_equal test" {
+    TEST="assert_objects_equal"
+    TEST_DIR="$DATA_DIR/$TEST"
+    run "$RUN_SCRIPT" "$TEST" "$TEST_DIR" "$TEST_DIR"
+
+    [[ "$status" -eq 0 ]]
+    actual_matches_expected "$TEST_DIR/results.json" "$TEST_DIR/expected_results.json"
+}

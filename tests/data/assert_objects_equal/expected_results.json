@@ -1,0 +1,32 @@
+{
+  "version": 3,
+  "status": "fail",
+  "test-environment": {
+    "jq": "jq-1.8.2",
+    "bats": "Bats 1.14.0",
+    "OS": "Darwin 27.0.0"
+  },
+  "tests": [
+    {
+      "name": "single letter",
+      "status": "pass",
+      "test_code": "run jq -c -f etl.jq << 'END_INPUT'\n    {\n      \"legacy\": {\n        \"1\": [\n          \"A\"\n        ]\n      }\n    }\nEND_INPUT\n\nassert_success\nexpected='{\"a\":1}'\nassert_objects_equal \"$output\" \"$expected\""
+    },
+    {
+      "name": "single score with multiple letters",
+      "status": "pass",
+      "test_code": "run jq -c -f etl.jq << 'END_INPUT'\n    {\n      \"legacy\": {\n        \"1\": [\n          \"A\",\n          \"E\",\n          \"I\",\n          \"O\",\n          \"U\"\n        ]\n      }\n    }\nEND_INPUT\n\nassert_success\nexpected='{\"a\":1,\"e\":1,\"i\":1,\"o\":1,\"u\":1}'\nassert_objects_equal \"$output\" \"$expected\""
+    },
+    {
+      "name": "multiple scores with multiple letters",
+      "status": "pass",
+      "test_code": "run jq -c -f etl.jq << 'END_INPUT'\n    {\n      \"legacy\": {\n        \"1\": [\n          \"A\",\n          \"E\"\n        ],\n        \"2\": [\n          \"D\",\n          \"G\"\n        ]\n      }\n    }\nEND_INPUT\n\nassert_success\nexpected='{\"a\":1,\"d\":2,\"e\":1,\"g\":2}'\nassert_objects_equal \"$output\" \"$expected\""
+    },
+    {
+      "name": "multiple scores with differing numbers of letters",
+      "status": "fail",
+      "test_code": "# specifically set an incorrect value \"11\" instead of \"1\"\nrun jq -c -f etl.jq << 'END_INPUT'\n    {\n      \"legacy\": {\n        \"11\": [\n          \"A\",\n          \"E\",\n          \"I\",\n          \"O\",\n          \"U\",\n          \"L\",\n          \"N\",\n          \"R\",\n          \"S\",\n          \"T\"\n        ],\n        \"2\": [\n          \"D\",\n          \"G\"\n        ],\n        \"3\": [\n          \"B\",\n          \"C\",\n          \"M\",\n          \"P\"\n        ],\n        \"4\": [\n          \"F\",\n          \"H\",\n          \"V\",\n          \"W\",\n          \"Y\"\n        ],\n        \"5\": [\n          \"K\"\n        ],\n        \"8\": [\n          \"J\",\n          \"X\"\n        ],\n        \"10\": [\n          \"Q\",\n          \"Z\"\n        ]\n      }\n    }\nEND_INPUT\n\nassert_success\nexpected='{\"a\":1,\"b\":3,\"c\":3,\"d\":2,\"e\":1,\"f\":4,\"g\":2,\"h\":4,\"i\":1,\"j\":8,\"k\":5,\"l\":1,\"m\":3,\"n\":1,\"o\":1,\"p\":3,\"q\":10,\"r\":1,\"s\":1,\"t\":1,\"u\":1,\"v\":4,\"w\":4,\"x\":8,\"y\":4,\"z\":10}'\nassert_objects_equal \"$output\" \"$expected\"",
+      "message": "(from function `assert_objects_equal' in file bats-jq.bash, line 51,\n in test file test-assert_objects_equal.bats, line 124)\n  `assert_objects_equal \"$output\" \"$expected\"' failed\n-- values do not equal --\nexpected : {\"a\":1,\"b\":3,\"c\":3,\"d\":2,\"e\":1,\"f\":4,\"g\":2,\"h\":4,\"i\":1,\"j\":8,\"k\":5,\"l\":1,\"m\":3,\"n\":1,\"o\":1,\"p\":3,\"q\":10,\"r\":1,\"s\":1,\"t\":1,\"u\":1,\"v\":4,\"w\":4,\"x\":8,\"y\":4,\"z\":10}\nactual   : {\"a\":11,\"b\":3,\"c\":3,\"d\":2,\"e\":11,\"f\":4,\"g\":2,\"h\":4,\"i\":11,\"j\":8,\"k\":5,\"l\":11,\"m\":3,\"n\":11,\"o\":11,\"p\":3,\"q\":10,\"r\":11,\"s\":11,\"t\":11,\"u\":11,\"v\":4,\"w\":4,\"x\":8,\"y\":4,\"z\":10}\n--\n"
+    }
+  ]
+}
