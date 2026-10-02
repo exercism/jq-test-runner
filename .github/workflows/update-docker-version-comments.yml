@@ -1,0 +1,142 @@
+name: Dockerfile version drift check
+
+# After a dependabot PR is merged, if the Dockerfile image is upversioned
+# then check the tool versions as written in the Dockerfile comments.
+# Created in collaboration with Github Copilot
+
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - 'Dockerfile'
+
+jobs:
+  check-dockerfile-comments:
+    # Only run when a Dependabot PR is merged into main
+    if: github.event.pull_request.merged == true && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Extract the Alpine image tag from the FROM line
+      - name: Extract Alpine image tag
+        id: image
+        run: |
+          IMAGE=$(awk '/^FROM / {print $2; exit}' Dockerfile)
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+          # Extract just the tag (e.g., "3.24.2" from "alpine:3.24.2@sha256:...")
+          TAG=$(echo "$IMAGE" | sed 's/[^:]*:\([^@]*\)@.*/\1/')
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      # Run the container and capture actual installed versions
+      - name: Check runtime versions in container
+        id: versions
+        shell: bash
+        run: |
+          IMAGE="${{ steps.image.outputs.image }}"
+          
+          # Query each tool version
+          BASH=$(docker run --rm "$IMAGE" bash --version | head -n 1)
+          BATS=$(docker run --rm "$IMAGE" bats --version)
+          JQ=$(docker run --rm "$IMAGE" jq --version)
+          
+          echo "bash=$BASH" >> "$GITHUB_OUTPUT"
+          echo "bats=$BATS" >> "$GITHUB_OUTPUT"
+          echo "jq=$JQ" >> "$GITHUB_OUTPUT"
+          
+          echo "Detected versions:"
+          echo "  bash: $BASH"
+          echo "  bats: $BATS"
+          echo "  jq:   $JQ"
+
+      # Update Dockerfile comments to match actual versions
+      - name: Update Dockerfile comments
+        shell: bash
+        run: |
+          TAG="${{ steps.image.outputs.tag }}"
+          BASH="${{ steps.versions.outputs.bash }}"
+          BATS="${{ steps.versions.outputs.bats }}"
+          JQ="${{ steps.versions.outputs.jq }}"
+          
+          python3 <<'PYTHON_EOF'
+          import re
+          from pathlib import Path
+          
+          dockerfile = Path("Dockerfile")
+          content = dockerfile.read_text()
+          
+          # Update the docker run command line
+          content = re.sub(
+              r'# \$ docker run --rm -it alpine:[^\n]+',
+              f'# $ docker run --rm -it alpine:{os.environ["TAG"]}',
+              content
+          )
+          
+          # Update bash version comment
+          content = re.sub(
+              r'# \$ bash --version   # => .+',
+              f'# $ bash --version   # => {os.environ["BASH"]}',
+              content
+          )
+          
+          # Update bats version comment
+          content = re.sub(
+              r'# \$ bats --version   # => .+',
+              f'# $ bats --version   # => {os.environ["BATS"]}',
+              content
+          )
+          
+          # Update jq version comment
+          content = re.sub(
+              r'# \$ jq --version     # => .+',
+              f'# $ jq --version     # => {os.environ["JQ"]}',
+              content
+          )
+          
+          dockerfile.write_text(content)
+          PYTHON_EOF
+        env:
+          TAG: ${{ steps.image.outputs.tag }}
+          BASH: ${{ steps.versions.outputs.bash }}
+          BATS: ${{ steps.versions.outputs.bats }}
+          JQ: ${{ steps.versions.outputs.jq }}
+
+      # Check if the Dockerfile was actually modified
+      - name: Check if Dockerfile changed
+        id: diff
+        run: |
+          if git diff --quiet -- Dockerfile; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "=== Changes ===" 
+            git diff Dockerfile
+          fi
+
+      # Create a PR only if versions actually changed
+      - name: Create PR with updated comment values
+        if: steps.diff.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1  # v8.1.1
+        with:
+          commit-message: "chore: update Dockerfile version comments"
+          title: "chore: update Dockerfile version comments"
+          body: |
+            This PR updates the Dockerfile comments to match the installed tool versions for Alpine `${{ steps.image.outputs.tag }}`.
+
+            **Updated:**
+            - `docker run` command example to use Alpine `${{ steps.image.outputs.tag }}`
+            - `bash --version` comment
+            - `bats --version` comment
+            - `jq --version` comment
+
+            **Verified in runtime image:**
+            ```
+            ${{ steps.versions.outputs.bash }}
+            ${{ steps.versions.outputs.bats }}
+            ${{ steps.versions.outputs.jq }}
+            ```
+          branch: chore/dockerfile-version-comments
+          delete-branch: true
