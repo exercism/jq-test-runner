@@ -168,10 +168,10 @@ build_report() {
             # add _previous_ to results
             if [[ -n $test_name ]]; then
                 if [[ -z $failed ]]; then
-                    results+=("$(print_passed_test "$test_name" "$test_body" "$prev_debug_output")")
+                    results+=("$test_name" pass "$test_body" "" "$prev_debug_output" "${task_ids[$test_name]:-}")
                 else
                     status="fail"
-                    results+=("$(print_failed_test "$test_name" "$error_message" "$test_body" "$prev_debug_output")")
+                    results+=("$test_name" fail "$test_body" "$error_message" "$prev_debug_output" "${task_ids[$test_name]:-}")
                 fi
             fi
 
@@ -187,10 +187,10 @@ build_report() {
     # last test
     if [[ -n $test_name ]]; then
         if [[ -z $failed ]]; then
-            results+=("$(print_passed_test "$test_name" "$test_body" "$prev_debug_output")")
+            results+=("$test_name" pass "$test_body" "" "$prev_debug_output" "${task_ids[$test_name]:-}")
         else
             status="fail"
-            results+=("$(print_failed_test "$test_name" "$error_message" "$test_body" "$prev_debug_output")")
+            results+=("$test_name" fail "$test_body" "$error_message" "$prev_debug_output" "${task_ids[$test_name]:-}")
         fi
     fi
 
@@ -220,23 +220,30 @@ error() {
 }
 
 print_report() {
-    # Print complete result JSON, given the overall status and a list of
-    # already JSON-encoded test results.
+    # Print the complete result JSON, given the overall status and the fields
+    # of every test: name, status, test code, message, output and task id.
+    # Building every test object in this one jq call is faster than starting
+    # jq once per test. Empty message, output and task id fields are left out.
     local status=$1
     shift
-    local tests=("$@")
     jq  --null-input \
         --argjson version "$INTERFACE_VERSION" \
         --argjson tools "$(tool_versions)" \
         --arg status "$status" \
-        --jsonargs \
         '{
             version: $version,
             status: $status,
             "test-environment": $tools,
-            tests: $ARGS.positional
+            tests: [
+                $ARGS.positional as $f
+                | range(0; $f | length; 6) as $i
+                | {name: $f[$i], status: $f[$i + 1], test_code: $f[$i + 2]}
+                + if $f[$i + 1] == "fail" then {message: $f[$i + 3]} else {} end
+                + if $f[$i + 4] != "" then {output: $f[$i + 4]} else {} end
+                + if $f[$i + 5] != "" then {task_id: $f[$i + 5]} else {} end
+            ]
         }' \
-        "${tests[@]}"
+        --args -- "$@"
 }
 
 tool_versions() {
@@ -256,38 +263,5 @@ tool_versions() {
             )" \
         '$ARGS.named'
 }    # ' for syntax highlighting
-
-print_failed_test() {
-    # Print result of failed test as JSON.
-    local args=(
-        --arg name "$1"
-        --arg status "fail"
-        --arg test_code "$3"
-        --arg message "$2"
-    )
-    if [[ -n "$4" ]] then
-        args+=(--arg output "$4")
-    fi
-    if [[ "${task_ids["$1"]}" ]]; then
-        args+=( --arg task_id "${task_ids["$1"]}" )
-    fi
-    jq --null-input "${args[@]}" '$ARGS.named'
-}
-
-print_passed_test() {
-    # Print result of passed test as JSON.
-    local args=(
-        --arg name "$1"
-        --arg status "pass"
-        --arg test_code "$2"
-    )
-    if [[ -n "$3" ]] then
-        args+=(--arg output "$3")
-    fi
-    if [[ "${task_ids["$1"]}" ]]; then
-        args+=( --arg task_id "${task_ids["$1"]}" )
-    fi
-    jq --null-input "${args[@]}" '$ARGS.named'
-}
 
 main "$@"
