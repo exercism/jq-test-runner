@@ -10,7 +10,7 @@
 
 # Debian's packages are older than Alpine's (jq 1.7.1, bats 1.11), so this
 # stage fetches the same jq and bats releases that Alpine 3.24 ships.
-FROM debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0 AS tools
+FROM debian:trixie-slim@sha256:109e2c65005bf160609e4ba6acf7783752f8502ad218e298253428690b9eaa4b AS tools
 
 ARG TARGETARCH
 ADD --checksum=sha256:a85e12b8828271a152b338ca8109aa23493b57950987c8e6dff97ba492772ff3 \
@@ -24,7 +24,7 @@ RUN mkdir /tmp/bats \
  && /tmp/bats/install.sh /opt/bats \
  && mv "/tmp/jq-${TARGETARCH}" /opt/jq
 
-FROM debian:trixie-slim@sha256:8aa5a7bf5a1955bddbe7d74fcdd0b91ab30e74362a8b73af672b0481b35b44a0
+FROM debian:trixie-slim@sha256:109e2c65005bf160609e4ba6acf7783752f8502ad218e298253428690b9eaa4b
 
 COPY --from=tools /opt/bats /usr/local
 COPY --from=tools /opt/jq /usr/local/bin/jq
