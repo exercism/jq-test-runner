@@ -145,7 +145,18 @@ build_report() {
 
     # process the rest of the TAP output
     local status="pass"
-    local results test_body failed test_name
+    local test_body failed test_name
+
+    # `results` is a flat array that holds 6 elements for each test, in order:
+    #   1. the test name
+    #   2. the status, "pass" or "fail"
+    #   3. the test code (the body of the @test block)
+    #   4. the error message (empty if the test passed)
+    #   5. the debug output (empty if there was none)
+    #   6. the task id (empty if the test has no "## task" comment)
+    # So test 1 is results[0..5], test 2 is results[6..11], and so on.
+    # print_report turns each chunk of 6 into one test object.
+    local results=()
     local error_message 
     local debug_output prev_debug_output
 
@@ -220,10 +231,23 @@ error() {
 }
 
 print_report() {
-    # Print the complete result JSON, given the overall status and the fields
-    # of every test: name, status, test code, message, output and task id.
+    # Print the complete result JSON, given the overall status and the
+    # `results` array from build_report (6 elements per test).
+    #
+    # The elements reach jq through `--args`, so jq sees them as the array
+    # $ARGS.positional, called $f below. `range(0; $f | length; 6)` gives the
+    # index of the first element of each test (0, 6, 12, ...), and for each
+    # index $i jq builds one test object from $f[$i] to $f[$i + 5]:
+    #   $f[$i]      name
+    #   $f[$i + 1]  status
+    #   $f[$i + 2]  test_code
+    #   $f[$i + 3]  message, added only if the test failed
+    #   $f[$i + 4]  output, added only if it is not empty
+    #   $f[$i + 5]  task_id, added only if it is not empty
+    # The `[ ... ]` around this collects the objects into the "tests" array.
+    #
     # Building every test object in this one jq call is faster than starting
-    # jq once per test. Empty message, output and task id fields are left out.
+    # jq once per test.
     local status=$1
     shift
     jq  --null-input \
