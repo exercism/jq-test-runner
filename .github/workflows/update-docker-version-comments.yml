@@ -21,31 +21,37 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Extract the Alpine image tag from the FROM line
-      - name: Extract Alpine image tag
+      # Extract the base image from the first FROM line, for the PR body
+      - name: Extract base image
         id: image
         run: |
           IMAGE=$(awk '/^FROM / {print $2; exit}' Dockerfile)
-          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
-          # Extract just the tag (e.g., "3.24.2" from "alpine:3.24.2@sha256:...")
-          TAG=$(echo "$IMAGE" | sed 's/[^:]*:\([^@]*\)@.*/\1/')
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          # Drop the digest (e.g., "debian:trixie-slim" from "debian:trixie-slim@sha256:...")
+          echo "base=${IMAGE%%@*}" >> "$GITHUB_OUTPUT"
+
+      # The base image is plain Debian. bats and jq are installed by the
+      # Dockerfile, so build the test runner image and ask it for the versions.
+      - name: Build test runner image
+        run: docker build --tag jq-test-runner .
 
       # Run the container and capture actual installed versions
       - name: Check runtime versions in container
         id: versions
         shell: bash
         run: |
-          IMAGE="${{ steps.image.outputs.image }}"
+          IMAGE=jq-test-runner
           
-          # Query each tool version
-          BASH=$(docker run --rm "$IMAGE" bash --version | head -n 1)
-          BATS=$(docker run --rm "$IMAGE" bats --version)
-          JQ=$(docker run --rm "$IMAGE" jq --version)
+          # Query each tool version. The image's entrypoint is run.sh, so
+          # override it to run each tool directly.
+          BASH=$(docker run --rm --entrypoint bash "$IMAGE" --version | head -n 1)
+          BATS=$(docker run --rm --entrypoint bats "$IMAGE" --version)
+          JQ=$(docker run --rm --entrypoint jq "$IMAGE" --version)
           
-          echo "bash=$BASH" >> "$GITHUB_OUTPUT"
-          echo "bats=$BATS" >> "$GITHUB_OUTPUT"
-          echo "jq=$JQ" >> "$GITHUB_OUTPUT"
+          {
+            echo "bash=$BASH"
+            echo "bats=$BATS"
+            echo "jq=$JQ"
+          } >> "$GITHUB_OUTPUT"
           
           echo "Detected versions:"
           echo "  bash: $BASH"
@@ -56,24 +62,13 @@ jobs:
       - name: Update Dockerfile comments
         shell: bash
         run: |
-          TAG="${{ steps.image.outputs.tag }}"
-          BASH="${{ steps.versions.outputs.bash }}"
-          BATS="${{ steps.versions.outputs.bats }}"
-          JQ="${{ steps.versions.outputs.jq }}"
-          
           python3 <<'PYTHON_EOF'
+          import os
           import re
           from pathlib import Path
           
           dockerfile = Path("Dockerfile")
           content = dockerfile.read_text()
-          
-          # Update the docker run command line
-          content = re.sub(
-              r'# \$ docker run --rm -it alpine:[^\n]+',
-              f'# $ docker run --rm -it alpine:{os.environ["TAG"]}',
-              content
-          )
           
           # Update bash version comment
           content = re.sub(
@@ -99,7 +94,6 @@ jobs:
           dockerfile.write_text(content)
           PYTHON_EOF
         env:
-          TAG: ${{ steps.image.outputs.tag }}
           BASH: ${{ steps.versions.outputs.bash }}
           BATS: ${{ steps.versions.outputs.bats }}
           JQ: ${{ steps.versions.outputs.jq }}
@@ -124,10 +118,9 @@ jobs:
           commit-message: "chore: update Dockerfile version comments"
           title: "chore: update Dockerfile version comments"
           body: |
-            This PR updates the Dockerfile comments to match the installed tool versions for Alpine `${{ steps.image.outputs.tag }}`.
+            This PR updates the Dockerfile comments to match the installed tool versions for `${{ steps.image.outputs.base }}`.
 
             **Updated:**
-            - `docker run` command example to use Alpine `${{ steps.image.outputs.tag }}`
             - `bash --version` comment
             - `bats --version` comment
             - `jq --version` comment
